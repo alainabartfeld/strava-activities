@@ -1,5 +1,5 @@
 # Ignore all .log files
 *.log
 
-# Ignore csv's
+# Ignore all .csv files
 *.csv

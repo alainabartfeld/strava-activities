@@ -1,1 +1,2 @@
 # strava-activities
+This repo has a one-time script to get access keys for a given Strava account using environment variables. Then it downloads the data as a CSV file and deposits it into the `./data` folder, and writes logs to the `./logs` folder on runtime.
