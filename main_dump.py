@@ -6,24 +6,27 @@ import logging
 from datetime import datetime
 
 #%%
-# ---------------------------------------------------------
-# Create Log File Name (Daily + Incrementing)
-# ---------------------------------------------------------
 today = datetime.today().strftime("%Y-%m-%d")
-base_log_name = f"strava_export_{today}.log"
-log_dir = os.path.dirname(__file__)
+log_counter = 1
+csv_counter = 1
 
-# Find next available log filename if duplicates exist
-log_file_path = os.path.join(log_dir, base_log_name)
-counter = 1
+# Setup Logging
+# Paths and file names (paths must already exist)
+BASE_DIR = os.path.dirname(__file__)
+LOG_DIR = os.path.join(BASE_DIR, "logs")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+
+base_log_name = f"strava_export_{today}.log"
+log_file_path = os.path.join(LOG_DIR, base_log_name)
+
+base_csv_name = f"strava_export_{today}.csv"
+csv_path = os.path.join(DATA_DIR, base_csv_name)
 
 while os.path.exists(log_file_path):
-    log_file_path = os.path.join(log_dir, f"strava_export_{today}_{counter}.log")
-    counter += 1
+    log_file_path = os.path.join(LOG_DIR, f"strava_export_{today}_{log_counter}.log")
+    log_counter += 1
 
-# ---------------------------------------------------------
-# Setup Logging
-# ---------------------------------------------------------
+
 logging.basicConfig(
     filename=log_file_path,
     filemode="a",
@@ -31,12 +34,10 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-logging.info("Strava export script started.")
+logging.info(f"Data deposited into: {log_file_path}")
+logging.info(f"Logs deposited into: {csv_path}")
 
-#%%
-# ---------------------------------------------------------
-# Environment Variables
-# ---------------------------------------------------------
+# Environment variables
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
 CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
 REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
@@ -45,10 +46,14 @@ if not CLIENT_ID or not CLIENT_SECRET or not REFRESH_TOKEN:
     logging.error("Missing one or more required environment variables.")
     raise EnvironmentError("Set STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET, STRAVA_REFRESH_TOKEN")
 
+
 #%%
 # ---------------------------------------------------------
 # Step 1: Refresh Token → Get Access Token
 # ---------------------------------------------------------
+logging.info("Strava export script started.")
+logging.info("Requesting new access token")
+
 auth_url = "https://www.strava.com/oauth/token"
 auth_params = {
     "client_id": CLIENT_ID,
@@ -56,8 +61,8 @@ auth_params = {
     "refresh_token": REFRESH_TOKEN,
     "grant_type": "refresh_token"
 }
+activities_url = "https://www.strava.com/api/v3/athlete/activities"
 
-logging.info("Requesting new access token...")
 auth_response = requests.post(auth_url, data=auth_params)
 
 if auth_response.status_code != 200:
@@ -67,13 +72,13 @@ if auth_response.status_code != 200:
 access_token = auth_response.json().get("access_token")
 logging.info("Access token retrieved successfully.")
 
+#%%
 # ---------------------------------------------------------
 # Step 2: Get Activities
 # ---------------------------------------------------------
-activities_url = "https://www.strava.com/api/v3/athlete/activities"
 headers = {"Authorization": f"Bearer {access_token}"}
 
-logging.info("Requesting activities from Strava API...")
+logging.info("Requesting activities from Strava API")
 activities_response = requests.get(activities_url, headers=headers)
 
 if activities_response.status_code != 200:
@@ -83,23 +88,18 @@ if activities_response.status_code != 200:
 activities = activities_response.json()
 logging.info(f"Fetched {len(activities)} activities.")
 
-# ---------------------------------------------------------
-# Step 3: Save Activities to CSV With Today's Date + Incrementing
-# ---------------------------------------------------------
-base_csv_name = f"strava_export_{today}.csv"
-csv_path = os.path.join(log_dir, base_csv_name)
 
-# Increment filename if multiple exports on the same day
-csv_counter = 1
+#%%
+# ---------------------------------------------------------
+# Step 3: Save Activities to CSV
+# ---------------------------------------------------------
 while os.path.exists(csv_path):
-    csv_path = os.path.join(log_dir, f"strava_export_{today}_{csv_counter}.csv")
+    csv_path = os.path.join(DATA_DIR, f"strava_export_{today}_{csv_counter}.csv")
     csv_counter += 1
 
 df = pd.DataFrame(activities)
 df.to_csv(csv_path, index=False)
 
 logging.info(f"CSV exported: {os.path.basename(csv_path)}")
-print(f"Export complete → {os.path.basename(csv_path)}")
-print(f"Log file → {os.path.basename(log_file_path)}")
+logging.info(f"Script completed.")
 
-# %%
