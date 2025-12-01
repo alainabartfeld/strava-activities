@@ -34,8 +34,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-logging.info(f"Data deposited into: {log_file_path}")
-logging.info(f"Logs deposited into: {csv_path}")
+logging.info(f"Data deposited into: {csv_path}")
+logging.info(f"Logs deposited into: {log_file_path}")
 
 # Environment variables
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
@@ -76,17 +76,29 @@ logging.info("Access token retrieved successfully.")
 # ---------------------------------------------------------
 # Step 2: Get Activities
 # ---------------------------------------------------------
+logging.info("Starting request for activities from Strava API")
 headers = {"Authorization": f"Bearer {access_token}"}
 
-logging.info("Requesting activities from Strava API")
-activities_response = requests.get(activities_url, headers=headers)
+# Full load of all activities ever
+all_activities = []
+page = 1
 
-if activities_response.status_code != 200:
-    logging.error(f"Activities API request failed: {activities_response.text}")
-    raise Exception("Failed to fetch activities.")
+while True:
+    logging.info("Requesting page %d of activities", page)
+    params = {"page": page, "per_page": 200}  # 200 is max allowed
+    response = requests.get(activities_url, headers=headers, params=params)
+    if response.status_code != 200:
+        logging.error(f"Activities API request failed: {response.text}")
+        raise Exception("Failed to fetch activities.")
+    batch = response.json()
 
-activities = activities_response.json()
-logging.info(f"Fetched {len(activities)} activities.")
+    if not batch:
+        break
+
+    all_activities.extend(batch)
+    page += 1
+
+logging.info(f"Fetched {len(all_activities)} activities.")
 
 
 #%%
@@ -97,9 +109,7 @@ while os.path.exists(csv_path):
     csv_path = os.path.join(DATA_DIR, f"strava_export_{today}_{csv_counter}.csv")
     csv_counter += 1
 
-df = pd.DataFrame(activities)
+df = pd.DataFrame(all_activities)
 df.to_csv(csv_path, index=False)
 
-logging.info(f"CSV exported: {os.path.basename(csv_path)}")
 logging.info(f"Script completed.")
-
