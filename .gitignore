@@ -3,3 +3,6 @@
 
 # Ignore all .csv files
 *.csv
+
+# Ignore all .pyc files
+.pyc
