@@ -4,9 +4,10 @@ import requests
 import pandas as pd
 import logging
 from datetime import datetime
+import my_utils
 
 #%%
-today = datetime.today().strftime("%Y-%m-%d")
+today = my_utils.get_today_as_date()
 log_counter = 1
 csv_counter = 1
 
@@ -109,7 +110,11 @@ while os.path.exists(csv_path):
     csv_path = os.path.join(DATA_DIR, f"strava_export_{today}_{csv_counter}.csv")
     csv_counter += 1
 
+# convert to data frame
 df = pd.DataFrame(all_activities)
+# add loaded date
+df["loaded_date"] = my_utils.get_today_as_timestamp()
+# convert to csv
 df.to_csv(csv_path, index=False)
 
 logging.info(f"Script completed.")
