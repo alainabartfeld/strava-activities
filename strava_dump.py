@@ -4,6 +4,7 @@ import requests
 import pandas as pd
 import logging
 from datetime import datetime
+import my_utils
 
 #%%
 today = datetime.today().strftime("%Y-%m-%d")
@@ -12,30 +13,30 @@ csv_counter = 1
 
 # Setup Logging
 # Paths and file names (paths must already exist)
-BASE_DIR = os.path.dirname(__file__)
-LOG_DIR = os.path.join(BASE_DIR, "logs")
-DATA_DIR = os.path.join(BASE_DIR, "data")
+LOG_DIR = my_utils.return_dir("logs")
+DATA_DIR = my_utils.return_dir("data")
 
-base_log_name = f"strava_export_{today}.log"
-log_file_path = os.path.join(LOG_DIR, base_log_name)
+#%%
+log_name = f"strava_export_{today}.log"
+full_log_dir = os.path.join(LOG_DIR, log_name)
 
-base_csv_name = f"strava_export_{today}.csv"
-csv_path = os.path.join(DATA_DIR, base_csv_name)
+csv_name = f"strava_export_{today}.csv"
+full_csv_dir = os.path.join(DATA_DIR, csv_name)
 
-while os.path.exists(log_file_path):
-    log_file_path = os.path.join(LOG_DIR, f"strava_export_{today}_{log_counter}.log")
+while os.path.exists(full_log_dir):
+    full_log_dir = os.path.join(LOG_DIR, f"strava_export_{today}_{log_counter}.log")
     log_counter += 1
 
 
 logging.basicConfig(
-    filename=log_file_path,
+    filename=full_log_dir,
     filemode="a",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-logging.info(f"Data deposited into: {log_file_path}")
-logging.info(f"Logs deposited into: {csv_path}")
+logging.info(f"Data deposited into: {full_csv_dir}")
+logging.info(f"Logs deposited into: {full_log_dir}")
 
 # Environment variables
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
@@ -93,13 +94,17 @@ logging.info(f"Fetched {len(activities)} activities.")
 # ---------------------------------------------------------
 # Step 3: Save Activities to CSV
 # ---------------------------------------------------------
-while os.path.exists(csv_path):
-    csv_path = os.path.join(DATA_DIR, f"strava_export_{today}_{csv_counter}.csv")
+while os.path.exists(full_csv_dir):
+    full_csv_dir = os.path.join(DATA_DIR, f"strava_export_{today}_{csv_counter}.csv")
     csv_counter += 1
 
 df = pd.DataFrame(activities)
-df.to_csv(csv_path, index=False)
 
-logging.info(f"CSV exported: {os.path.basename(csv_path)}")
+# add loaded_date column as timestamp
+df["loaded_date"] = pd.Timestamp.today()
+
+df.to_csv(full_csv_dir, index=False)
+
+logging.info(f"CSV exported: {os.path.basename(full_csv_dir)}")
 logging.info(f"Script completed.")
 
