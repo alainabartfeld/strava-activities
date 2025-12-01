@@ -9,6 +9,8 @@ import requests
 import pandas as pd
 
 #%%
-def get_base_path():
-    BASE_DIR = os.path.dirname(__file__)
-    return BASE_DIR
+def return_dir(dir_appendix: str) -> str:
+    base_dir = os.path.dirname(__file__)
+    output_dir = os.path.join(base_dir, dir_appendix)
+    return output_dir
+# %%
