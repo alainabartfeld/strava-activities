@@ -12,7 +12,7 @@ import pandas as pd
 def get_specific_path(sub_path: str):
     # __file__ is the path to this utils file, not where it's called from
     specific_path = os.path.join(os.path.dirname(__file__), sub_path)
-    return specific_path
+    return(specific_path)
 
 
 def get_today_as_date():
@@ -80,9 +80,6 @@ def initialize_paths(log_dir: str, data_dir: str, name: str):
 
 #%%
 def download_data_from_strava(activities_url: str = "https://www.strava.com/api/v3/athlete/activities"):
-    # TODO
-    # why doesnt this work if I call setup_logging() from here? -- maybe remove this
-    # detect if data is being overwritten or not and print to log
     init_paths = initialize_paths("logs", "data", "strava_export")
     
     # Set up logging
@@ -143,10 +140,12 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     setup_logging(init_paths["log_file_path"])
     logging.info(f"Starting upload_data_to_duckdb() function")
     
+    # Get all the files in the "data" directory
     data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
     csv_files = sorted(glob.glob(os.path.join(data_dir, '*.csv')))
     logging.info(f"Found CSV files, getting the latest file from data directory: {data_dir}")
 
+    # Get the latest file based on date and version
     file_info = []  # list of tuples: (date, version, filepath)
 
     for f in csv_files:
