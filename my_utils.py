@@ -75,22 +75,14 @@ def initialize_paths(log_dir: str, data_dir: str, name: str):
     log_file_path = os.path.join(log_dir, name+".log")
     csv_file_path = os.path.join(data_dir, name+".csv")
 
-    # Handle more than one run per day
-    # this is broken
-    while os.path.exists(log_file_path):
-        # overwrite "name" variable with counter
-        name = f"{name}_{today}_{log_counter}"
-        log_file_path = os.path.join(log_dir, name+".log")
-        log_counter += 1
-    while os.path.exists(csv_file_path):
-        csv_file_path = os.path.join(data_dir, name+".csv")
-        csv_counter += 1
-
     return({"log_file_path":log_file_path, "csv_file_path":csv_file_path})
 
 
 #%%
 def download_data_from_strava(activities_url: str = "https://www.strava.com/api/v3/athlete/activities"):
+    # TODO
+    # why doesnt this work if I call setup_logging() from here? -- maybe remove this
+    # detect if data is being overwritten or not and print to log
     init_paths = initialize_paths("logs", "data", "strava_export")
     
     # Set up logging
@@ -153,10 +145,9 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     
     data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
     csv_files = sorted(glob.glob(os.path.join(data_dir, '*.csv')))
-    logging.info(f"Found CSV files: {csv_files}")
+    logging.info(f"Found CSV files, getting the latest file from data directory: {data_dir}")
 
     file_info = []  # list of tuples: (date, version, filepath)
-    logging.info("Getting the latest file from data directory")
 
     for f in csv_files:
         filename = os.path.basename(f)    
@@ -197,5 +188,5 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     logging.info(f"Reading the latest CSV file read into DuckDB: {latest_file}")
     logging.info(f"upload_data_to_duckdb() function completed")
     
-    return(duckdb.sql("SELECT * FROM ddb"))
+    return(ddb)
 # %%
