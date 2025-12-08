@@ -13,6 +13,7 @@ csv_counter = 1
 
 # Setup Logging
 # Paths and file names (paths must already exist)
+# TODO abstract this part out
 BASE_DIR = os.path.dirname(__file__)
 LOG_DIR = os.path.join(BASE_DIR, "logs")
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -36,7 +37,7 @@ logging.basicConfig(
 )
 
 logging.info(f"Data deposited into: {csv_path}")
-logging.info(f"Logs deposited into: {log_file_path}")
+logging.info(f"Log deposited into: {log_file_path}")
 
 # Environment variables
 CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
