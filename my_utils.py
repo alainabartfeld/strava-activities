@@ -2,19 +2,12 @@
 import glob
 import duckdb
 import os
-import json
 import logging
 from datetime import datetime
 import requests
 import pandas as pd
 
 #%%
-def get_specific_path(sub_path: str):
-    # __file__ is the path to this utils file, not where it's called from
-    specific_path = os.path.join(os.path.dirname(__file__), sub_path)
-    return(specific_path)
-
-
 def get_today_as_date():
     today = datetime.today().strftime("%Y-%m-%d")
     return(today)
@@ -25,7 +18,24 @@ def get_today_as_timestamp():
     return(timestamp_today)
 
 
+def setup_logging(log_file_path):
+    logging.basicConfig(
+        filename=log_file_path,
+        filemode="a",
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    
+
+def get_specific_path(sub_path: str):
+    # __file__ is the path to this utils file, not where it's called from
+    specific_path = os.path.join(os.path.dirname(__file__), sub_path)
+    return(specific_path)
+
+
 def refresh_access_token(auth_url: str= "https://www.strava.com/oauth/token"):
+    logging.info("Starting the refresh_access_token() function")
+    
     CLIENT_ID = os.getenv("STRAVA_CLIENT_ID")
     CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET")
     REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN")
@@ -53,40 +63,25 @@ def refresh_access_token(auth_url: str= "https://www.strava.com/oauth/token"):
     return(access_token)
 
 
-def setup_logging(log_file_path):
-    logging.basicConfig(
-        filename=log_file_path,
-        filemode="a",
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s"
-    )
-
-def initialize_paths(log_dir: str, data_dir: str, name: str):
+def initialize_paths(log_dir: str, data_dir: str, filename: str):
     today = get_today_as_date()
-    log_counter = 1
-    csv_counter = 1
 
     # Set up paths and file names (paths must already exist)
     # Paths
     log_dir = get_specific_path(log_dir)
     data_dir = get_specific_path(data_dir)
     # File names
-    name = f"{name}_{today}"
-    log_file_path = os.path.join(log_dir, name+".log")
-    csv_file_path = os.path.join(data_dir, name+".csv")
+    filename = f"{filename}_{today}"
+    log_file_path = os.path.join(log_dir, filename+".log")
+    csv_file_path = os.path.join(data_dir, filename+".csv")
 
-    return({"log_file_path":log_file_path, "csv_file_path":csv_file_path})
+    return({"log_file_path":log_file_path
+            , "csv_file_path":csv_file_path})
 
 
 #%%
-def download_data_from_strava(activities_url: str = "https://www.strava.com/api/v3/athlete/activities"):
-    init_paths = initialize_paths("logs", "data", "strava_export")
-    
-    # Set up logging
-    setup_logging(init_paths["log_file_path"])
+def download_data_from_strava(csv_path: str, activities_url: str = "https://www.strava.com/api/v3/athlete/activities"):
     logging.info("Starting the download_data_from_strava() function")
-    logging.info(f"Log deposited into: {init_paths['log_file_path']}")
-    logging.info(f"Data deposited into: {init_paths['csv_file_path']}")
 
     # Refresh access token
     access_token = refresh_access_token()
@@ -126,7 +121,10 @@ def download_data_from_strava(activities_url: str = "https://www.strava.com/api/
     # add loaded date
     df["loaded_date"] = get_today_as_timestamp()
     # convert to csv
-    df.to_csv(init_paths['csv_file_path'], index=False)
+    if not csv_path:
+        logging.error("No csv_path provided to download_data_from_strava")
+        raise ValueError("csv_path is required")
+    df.to_csv(csv_path, index=False)
 
     logging.info(f"download_data_from_strava() function completed")
 
@@ -134,10 +132,6 @@ def download_data_from_strava(activities_url: str = "https://www.strava.com/api/
 
 #%%
 def upload_data_to_duckdb(df: pd.DataFrame):
-    init_paths = initialize_paths("logs", "data", "duckdb_upload")
-    
-    # Set up logging
-    setup_logging(init_paths["log_file_path"])
     logging.info(f"Starting upload_data_to_duckdb() function")
     
     # Get all the files in the "data" directory
