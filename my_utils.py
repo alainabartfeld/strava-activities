@@ -132,7 +132,6 @@ def download_data_from_strava(csv_path: str, activities_url: str = "https://www.
 
 #%%
 def upload_data_to_duckdb(df: pd.DataFrame):
-   
     logging.info(f"Starting upload_data_to_duckdb() function")
     
     # Get all the files in the "data" directory
