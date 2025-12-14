@@ -139,44 +139,35 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     csv_files = sorted(glob.glob(os.path.join(data_dir, '*.csv')))
     logging.info(f"Found CSV files, getting the latest file from data directory: {data_dir}")
 
-    # Get the latest file based on date and version
-    file_info = []  # list of tuples: (date, version, filepath)
+    # Get the latest file based on filename date (ignore any _N suffix entirely)
+    file_info = []  # list of tuples: (date, filepath)
 
     for f in csv_files:
-        filename = os.path.basename(f)    
-        # Remove prefix
-        fn = filename.replace("strava_export_", "")  # "YYYY-MM-DD.csv" or "YYYY-MM-DD_N.csv"
-        fn = fn.replace(".csv", "")
-        parts = fn.split("_")
-        # First part is always the date
-        date_str = parts[0]
-        
+        filename = os.path.basename(f)
+        # Remove prefix and extension, then take the first part as the date
+        fn = filename.replace("strava_export_", "").replace(".csv", "")
+        date_str = fn.split("_")[0]
+
         try:
             date = datetime.strptime(date_str, "%Y-%m-%d")
         except ValueError:
             logging.error(f"Skipping malformed filename: {filename}")
             continue  # skip malformed files
-        # Version handling
-        if len(parts) > 1 and parts[1].isdigit():
-            version = int(parts[1])
-        else:
-            version = 1  # default for files with no suffix
 
-        file_info.append((date, version, f))
+        file_info.append((date, f))
 
     # If no valid files found
     if not file_info:
         logging.error("No valid CSV files found")
-        latest_file = None
-    else:
-        # Find latest date overall
-        latest_date = max(x[0] for x in file_info)
-        # Get only files for that date
-        latest_date_files = [x for x in file_info if x[0] == latest_date]
-        # Among files for that date, choose one with highest version
-        latest_file_entry = max(latest_date_files, key=lambda x: x[1])
-        latest_file = latest_file_entry[2]
-        
+        raise FileNotFoundError("No valid CSV files found in data directory")
+
+    # Find latest date overall
+    latest_date = max(date for date, _ in file_info)
+    # Candidate files for that date
+    candidate_files = [f for date, f in file_info if date == latest_date]
+    # If multiple files exist for the same date, choose the most recently modified file
+    latest_file = max(candidate_files, key=os.path.getmtime)
+
     ddb = duckdb.read_csv(latest_file)
     logging.info(f"Reading the latest CSV file read into DuckDB: {latest_file}")
     logging.info(f"upload_data_to_duckdb() function completed")
