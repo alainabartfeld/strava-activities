@@ -118,7 +118,7 @@ def download_data_from_strava(csv_path: str, activities_url: str = "https://www.
     # ---------------------------------------------------------
     # convert to data frame
     df = pd.DataFrame(all_activities)
-    # add loaded date
+    # add loaded date in PST
     df["loaded_date"] = get_today_as_timestamp()
     # convert to csv
     if not csv_path:
