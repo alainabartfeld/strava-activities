@@ -139,7 +139,7 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     csv_files = sorted(glob.glob(os.path.join(data_dir, '*.csv')))
     logging.info(f"Found CSV files, getting the latest file from data directory: {data_dir}")
 
-    # Get the latest file based on filename date (ignore any _N suffix entirely)
+    # Get the latest file based on filename date
     file_info = []  # list of tuples: (date, filepath)
 
     for f in csv_files:

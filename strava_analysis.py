@@ -107,8 +107,8 @@ staging = duckdb.sql(f"""
 runs_in_2025 = duckdb.sql('''
             SELECT *  
             FROM staging
-            WHERE year(start_date_local)=2025
-            AND type='Run'
+            WHERE year(start_date_local) = 2025
+            AND type = 'Run'
            '''
    )
 
@@ -138,9 +138,9 @@ duckdb.sql('''
 duckdb.sql('''
             SELECT type,round(sum(distance_miles),2) AS total_miles
             FROM staging
-            WHERE year(start_date_local)=2025
+            WHERE year(start_date_local) = 2025
             GROUP BY type
-            HAVING total_miles>0
+            HAVING total_miles > 0
             ORDER BY total_miles DESC
            '''
    )
@@ -151,8 +151,6 @@ duckdb.sql('''
 duckdb.sql('''
             SELECT count(*) AS total_runs
             FROM runs_in_2025
-            WHERE year(start_date_local)=2025
-            AND type='Run'
            '''
    )
 
@@ -168,12 +166,30 @@ duckdb.sql('''
    )
 
 #%%
-# 3. How much elevation did I run?
-
+# How much elevation did I run?
+duckdb.sql('''
+            SELECT round(sum(total_elevation_gain_feet),2) AS total_elevation_gain_feet
+            FROM runs_in_2025
+           '''
+   )
 
 #%%
-# 4. How much total time did I run?
+# How much total time did I run in hours?
+duckdb.sql('''
+            SELECT round(sum(moving_time_hrs),2) AS total_moving_time_hrs
+            FROM runs_in_2025
+           '''
+   )
 
+#%%
+# How did moving time differ from activity time?
+duckdb.sql('''
+            SELECT round(sum(moving_time_hrs),2) AS total_moving_time_hrs
+                ,round(sum(elapsed_time_hrs),2) AS total_elapsed_time_hrs
+                ,concat(round((total_moving_time_hrs/total_elapsed_time_hrs)*100,2),'%') as pct_moving_time
+            FROM runs_in_2025
+           '''
+   )
 
 #%%
 # 5. How much did these metrics change YoY?
