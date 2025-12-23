@@ -102,9 +102,6 @@ staging = duckdb.sql(f"""
 
 
 #%%
-#############################################
-# 2025 Year In Sport
-#############################################
 runs_in_2025 = duckdb.sql('''
             SELECT *  
             FROM staging
@@ -114,7 +111,7 @@ runs_in_2025 = duckdb.sql('''
    )
 
 #%%
-# How many miles did I run?
+# How many miles did I run in 2025?
 # Per month and grand total
 duckdb.sql('''
            WITH monthly AS (
@@ -134,9 +131,9 @@ duckdb.sql('''
    )
 
 #%%
-# How many miles of each activity type did I do?
+# How many miles of each activity type did I do in 2025?
 duckdb.sql('''
-            SELECT type,round(sum(distance_miles),2) AS total_miles
+            SELECT type, round(sum(distance_miles),2) AS total_miles
             FROM staging
             WHERE year(start_date_local) = 2025
             GROUP BY type
@@ -147,7 +144,7 @@ duckdb.sql('''
 
 
 # %%
-# How many runs did I do?
+# How many runs did I do in 2025?
 duckdb.sql('''
             SELECT count(*) AS total_runs
             FROM runs_in_2025
@@ -155,7 +152,7 @@ duckdb.sql('''
    )
 
 #%%
-# How many of each activity type did I do?
+# How many of each activity type did I do in 2025?
 duckdb.sql('''
             SELECT type,count(*) AS activity_count
             FROM staging
@@ -166,7 +163,7 @@ duckdb.sql('''
    )
 
 #%%
-# How much elevation did I run?
+# How much elevation did I run in 2025?
 duckdb.sql('''
             SELECT round(sum(total_elevation_gain_feet),2) AS total_elevation_gain_feet
             FROM runs_in_2025
@@ -174,7 +171,7 @@ duckdb.sql('''
    )
 
 #%%
-# How much total time did I run in hours?
+# How much total time did I run in hours in 2025?
 duckdb.sql('''
             SELECT round(sum(moving_time_hrs),2) AS total_moving_time_hrs
             FROM runs_in_2025
@@ -182,7 +179,7 @@ duckdb.sql('''
    )
 
 #%%
-# How did moving time differ from activity time?
+# How did moving time differ from activity time in 2025?
 duckdb.sql('''
             SELECT round(sum(moving_time_hrs),2) AS total_moving_time_hrs
                 ,round(sum(elapsed_time_hrs),2) AS total_elapsed_time_hrs
@@ -193,8 +190,8 @@ duckdb.sql('''
 
 #%%
 # How much did these metrics change YoY?
-# 2025 metrics
-duckdb.sql('''
+# 2023-2025 metrics
+basic_table = duckdb.sql('''
         SELECT 
             year(start_date_local) AS year
             -- Total distance
@@ -213,9 +210,7 @@ duckdb.sql('''
         '''
     )
 
-#%%
 # YoY change
-
 measures = [
     'distance_miles'
     ,'total_elevation_gain_feet'
@@ -225,10 +220,10 @@ measures = [
 changes_sql_template = Template('''
         WITH changes AS (
             SELECT     
-                year(start_date_local) AS year
+                YEAR(start_date_local) AS year
                 
                 -- Number of runs
-                ,count(*) AS number_of_runs
+                ,COUNT(*) AS number_of_runs
                 
                 -- Number of runs percentage change
                 ,ROUND(
@@ -240,23 +235,24 @@ changes_sql_template = Template('''
                 , 2) AS pct_change_number_of_runs
 
                 {% for col in measures %}
+                
+                    -- Total {{ col }}
+                    ,ROUND(SUM({{ col }}), 2) AS {{ col if col.startswith('total_') else 'total_' ~ col }}
 
-                -- Total {{col}}
-                ,ROUND(SUM( {{col}} ),2) AS total_{{col}}
-                
-                -- {{col}} change
-                ,ROUND(
-                    (ROUND(SUM( {{col}} ), 2)
-                        - LAG(ROUND(SUM( {{col}} ), 2)) 
+                    -- {{ col }} percentage change
+                    ,ROUND(
+                        (
+                            ROUND(SUM({{ col }}), 2)
+                            - LAG(ROUND(SUM({{ col }}), 2))
+                                OVER (ORDER BY year(start_date_local))
+                        )
+                        / LAG(ROUND(SUM({{ col }}), 2))
                             OVER (ORDER BY year(start_date_local))
-                    )
-                    / LAG(ROUND(SUM( {{col}} ), 2)) 
-                        OVER (ORDER BY year(start_date_local))
-                    * 100
-                , 2) AS  pct_change_{{col}}
-                
+                        * 100
+                    , 2) AS pct_change_{{ col }}
+
                 {% endfor %}
-            
+                
             FROM staging
             WHERE year > 2022
                 AND type = 'Run'
@@ -270,8 +266,7 @@ changes_sql_template = Template('''
  
 yoy = duckdb.sql(changes_sql_template.render(measures=measures))
 
-
-# %%
+# Format the percentage changes
 pct_change_measures = [
     'pct_change_distance_miles'
     ,'pct_change_number_of_runs'
@@ -287,14 +282,17 @@ format_yoy_sql_template = Template('''
                         ,CASE
                             WHEN {{ col }} IS NULL THEN 'N/A'
                             ELSE CONCAT(CAST( {{ col }} AS VARCHAR), '%')
-                        END AS {{ col }}
+                        END AS {{ col }}_formatted
                         {% endfor %}
                     FROM yoy
                 )
-                SELECT *
+                SELECT 
+                    {% for col in metrics %}
+                        {{ col }}_formatted AS {{ col }}{% if not loop.last %},{% endif %}
+                    {% endfor %}
                 FROM formats                                
         '''
 )
 
 duckdb.sql(format_yoy_sql_template.render(metrics=pct_change_measures))
-# %%
+
