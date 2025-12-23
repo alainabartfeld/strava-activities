@@ -111,6 +111,48 @@ runs_in_2025 = duckdb.sql('''
    )
 
 #%%
+##########################################################################################
+# 2025 YEAR IN SPORT
+##########################################################################################
+
+#%%
+# Total days active in 2025
+duckdb.sql('''
+           SELECT distinct date(start_date_local) AS start_date_local, count(*)
+           FROM staging
+           WHERE year(start_date_local) = 2025
+           GROUP BY ALL
+           HAVING COUNT(*) >= 1
+           ORDER BY start_date_local
+           '''
+   )
+
+#%%
+# Number of days active 
+# Per month and grand total
+duckdb.sql('''
+           WITH monthly AS (
+            SELECT distinct start_date_local_yyyy_mm, count(*) AS total_days_active
+            FROM staging
+            WHERE year(start_date_local) = 2025
+            GROUP BY ALL
+            HAVING COUNT(*) >= 1
+            ORDER BY start_date_local_yyyy_mm
+           )
+            , total AS (
+                SELECT 'Grand total',count(distinct(date(start_date_local))) AS total_days_active
+                FROM staging
+                WHERE year(start_date_local) = 2025
+                GROUP BY ALL
+                HAVING COUNT(*) >= 1
+            )
+            SELECT * FROM monthly
+            UNION ALL
+            SELECT * FROM total
+           '''
+   )
+
+#%%
 # How many miles did I run in 2025?
 # Per month and grand total
 duckdb.sql('''
@@ -131,6 +173,56 @@ duckdb.sql('''
    )
 
 #%%
+# How much elevation did I run in 2025?
+# Per month and grand total
+duckdb.sql('''
+           WITH monthly AS (
+                SELECT start_date_local_yyyy_mm,round(sum(total_elevation_gain_feet),2) as total_elevation_gain_feet
+                FROM runs_in_2025
+                GROUP BY start_date_local_yyyy_mm
+                ORDER BY start_date_local_yyyy_mm
+               )
+            , total AS (
+                SELECT 'Grand total',round(sum(total_elevation_gain_feet),2) AS total_elevation_gain_feet
+                FROM runs_in_2025
+            )
+            SELECT * FROM monthly
+            UNION ALL
+            SELECT * FROM total
+           '''
+   )
+
+#%%
+# How much total time did I run in hours in 2025?
+# Per month and grand total
+duckdb.sql('''
+            WITH monthly AS (
+                SELECT start_date_local_yyyy_mm,round(sum(moving_time_hrs),2) AS total_moving_time_hrs
+                FROM runs_in_2025
+                GROUP BY start_date_local_yyyy_mm
+                ORDER BY start_date_local_yyyy_mm
+               )
+            , total AS (
+                SELECT 'Grand total',round(sum(moving_time_hrs),2) AS total_moving_time_hrs
+                FROM runs_in_2025
+            )
+            SELECT * FROM monthly
+            UNION ALL
+            SELECT * FROM total
+           '''
+   )
+# TO DO: divide by mt everest height for number of times climbed
+
+# top kudo-giver
+# longest streak of activity
+# 2025 PRs
+
+# %%
+##########################################################################################
+# ADDITIONAL QUESTIONS
+##########################################################################################
+
+#%%
 # How many miles of each activity type did I do in 2025?
 duckdb.sql('''
             SELECT type, round(sum(distance_miles),2) AS total_miles
@@ -141,7 +233,6 @@ duckdb.sql('''
             ORDER BY total_miles DESC
            '''
    )
-
 
 # %%
 # How many runs did I do in 2025?
@@ -162,21 +253,6 @@ duckdb.sql('''
            '''
    )
 
-#%%
-# How much elevation did I run in 2025?
-duckdb.sql('''
-            SELECT round(sum(total_elevation_gain_feet),2) AS total_elevation_gain_feet
-            FROM runs_in_2025
-           '''
-   )
-
-#%%
-# How much total time did I run in hours in 2025?
-duckdb.sql('''
-            SELECT round(sum(moving_time_hrs),2) AS total_moving_time_hrs
-            FROM runs_in_2025
-           '''
-   )
 
 #%%
 # How did moving time differ from activity time in 2025?
@@ -295,4 +371,3 @@ format_yoy_sql_template = Template('''
 )
 
 duckdb.sql(format_yoy_sql_template.render(metrics=pct_change_measures))
-
