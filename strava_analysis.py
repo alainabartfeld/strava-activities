@@ -277,7 +277,7 @@ duckdb.sql('''
         GROUP BY streak_id
     )
 
-    -- 6. Max streak
+    -- 6. Max streak and when
     SELECT
         MAX(streak_length) AS max_activity_streak_days
         ,streak_start
@@ -288,6 +288,83 @@ duckdb.sql('''
         FROM streak_lengths)
     GROUP BY streak_id,streak_start,streak_end
 '''
+)
+
+
+#%%
+# Longest weekly activity streak
+# There are 52 weeks populated so I had at least one activity per week in 2025
+duckdb.sql('''
+        SELECT count(DISTINCT
+            week(start_date_local)) AS activity_weeks
+        FROM staging
+        WHERE year(start_date_local) = 2025 
+    '''
+)
+
+
+#%%
+# Longest weekly running streak
+# TODO: Convert the week numbers back into activity_dates to be more intuitive
+
+duckdb.sql('''
+    -- 1. One row per run week w/ assumption of if there is an entry in the Strava data, there was an activity logged
+    WITH activity_weeks AS (
+        SELECT DISTINCT
+            week(start_date_local) AS activity_week
+        FROM runs_in_2025
+    ),
+
+    -- 2. Order and look at previous day
+    ordered_days AS (
+        SELECT
+            activity_week
+            ,LAG(activity_week) OVER (ORDER BY activity_week) AS prev_date
+        FROM activity_weeks
+    ),
+
+    -- 3. Flag when a new streak starts
+    streak_flags AS (
+        SELECT
+            activity_week
+            ,CASE
+                WHEN prev_date IS NULL THEN 1
+                WHEN activity_week = prev_date + 1 THEN 0
+                ELSE 1
+            END AS new_streak
+        FROM ordered_days
+    ),
+
+    -- 4. Assign streak group id
+    streak_groups AS (
+        SELECT
+            activity_week
+            ,SUM(new_streak) OVER (ORDER BY activity_week) AS streak_id
+        FROM streak_flags
+    ),
+
+    -- 5. Count weeks per streak
+    streak_lengths AS (
+        SELECT
+            streak_id
+            ,COUNT(*) AS streak_length
+            ,MIN(activity_week) AS streak_start
+            ,MAX(activity_week) AS streak_end
+        FROM streak_groups
+        GROUP BY streak_id
+    )
+
+    -- 6. Max streak and when
+    SELECT
+        MAX(streak_length) AS max_running_streak_week
+        ,streak_start
+        ,streak_end
+    FROM streak_lengths
+    WHERE streak_length = 
+        (SELECT MAX(streak_length)
+        FROM streak_lengths)
+    GROUP BY streak_id,streak_start,streak_end
+    '''
 )
 
 
