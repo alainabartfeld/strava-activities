@@ -71,10 +71,16 @@ staging = duckdb.sql(f"""
         ,round(total_elevation_gain / {feet_to_meters},2) AS total_elevation_gain_feet
         ,round(elev_high / {feet_to_meters},2) AS elevn_high_feet
         ,round(elev_low / {feet_to_meters},2) AS elev_low_feet
-
+        
+        , CASE 
+            WHEN distance_miles = 0
+            THEN 0.00
+            ELSE round(moving_time_mins / distance_miles,2) 
+        END AS average_pace_mins_per_mile
+        
         -- OTHER MEASURES
-        ,average_speed
-        ,max_speed
+        ,average_speed --in meters per second by default
+        ,max_speed --in meters per second by default
         ,average_cadence
         ,average_watts
         ,max_watts
@@ -99,7 +105,6 @@ staging = duckdb.sql(f"""
         
     FROM base
 """)
-
 
 #%%
 runs_in_2025 = duckdb.sql('''
@@ -166,14 +171,22 @@ duckdb.sql('''
                 SELECT 'Grand total',round(sum(distance_miles),2) AS total_miles
                 FROM runs_in_2025
             )
+            , monthly_avg AS
+                (
+                SELECT 'Monthly average',round(sum(distance_miles)/12,2)
+                FROM runs_in_2025
+                )
             SELECT * FROM monthly
             UNION ALL
             SELECT * FROM total
+            UNION ALL
+            SELECT *
+            FROM monthly_avg
            '''
    )
 
 #%%
-# How much elevation did I run in 2025?
+# How much elevation gain did I run in 2025?
 # Per month and grand total
 duckdb.sql('''
            WITH monthly AS (
@@ -195,6 +208,8 @@ duckdb.sql('''
 #%%
 # How much total time did I run in hours in 2025?
 # Per month and grand total
+# TODO: divide by mt everest height for number of times climbed
+
 duckdb.sql('''
             WITH monthly AS (
                 SELECT start_date_local_yyyy_mm,round(sum(moving_time_hrs),2) AS total_moving_time_hrs
@@ -211,11 +226,70 @@ duckdb.sql('''
             SELECT * FROM total
            '''
    )
-# TO DO: divide by mt everest height for number of times climbed
 
-# top kudo-giver
-# longest streak of activity
-# 2025 PRs
+#%%
+# Longest daily streak of activity
+duckdb.sql('''
+    -- 1. One row per active day w/ assumption of if there is an entry in the Strava data, there was an activity logged
+    WITH activity_days AS (
+        SELECT DISTINCT
+            DATE(start_date_local) AS activity_date
+        FROM staging
+        WHERE year(start_date_local) = 2025
+    ),
+
+    -- 2. Order and look at previous day
+    ordered_days AS (
+        SELECT
+            activity_date
+            ,LAG(activity_date) OVER (ORDER BY activity_date) AS prev_date
+        FROM activity_days
+    ),
+
+    -- 3. Flag when a new streak starts
+    streak_flags AS (
+        SELECT
+            activity_date
+            ,CASE
+                WHEN prev_date IS NULL THEN 1
+                WHEN activity_date = prev_date + INTERVAL 1 DAY THEN 0
+                ELSE 1
+            END AS new_streak
+        FROM ordered_days
+    ),
+
+    -- 4. Assign streak group id
+    streak_groups AS (
+        SELECT
+            activity_date
+            ,SUM(new_streak) OVER (ORDER BY activity_date) AS streak_id
+        FROM streak_flags
+    ),
+
+    -- 5. Count days per streak
+    streak_lengths AS (
+        SELECT
+            streak_id
+            ,COUNT(*) AS streak_length
+            ,MIN(activity_date) AS streak_start
+            ,MAX(activity_date) AS streak_end
+        FROM streak_groups
+        GROUP BY streak_id
+    )
+
+    -- 6. Max streak
+    SELECT
+        MAX(streak_length) AS max_activity_streak_days
+        ,streak_start
+        ,streak_end
+    FROM streak_lengths
+    WHERE streak_length = 
+        (SELECT MAX(streak_length)
+        FROM streak_lengths)
+    GROUP BY streak_id,streak_start,streak_end
+'''
+)
+
 
 # %%
 ##########################################################################################
@@ -371,3 +445,34 @@ format_yoy_sql_template = Template('''
 )
 
 duckdb.sql(format_yoy_sql_template.render(metrics=pct_change_measures))
+
+#%%
+# What activity had the fastest average pace?
+duckdb.sql('''
+        SELECT name
+            ,date(start_date_local) AS start_date
+            ,average_pace_mins_per_mile
+            ,distance_miles
+            ,kudos_count
+        FROM runs_in_2025
+        WHERE average_pace_mins_per_mile =
+            (SELECT MIN(average_pace_mins_per_mile)
+            FROM runs_in_2025
+            )
+        '''
+    )
+
+# %%
+# What 5 activities had the fastest average pace?
+# TODO: Redo with RANK() function
+duckdb.sql('''
+        SELECT name
+            ,date(start_date_local) AS start_date
+            ,average_pace_mins_per_mile
+            ,distance_miles
+            ,kudos_count
+        FROM runs_in_2025
+        ORDER BY average_pace_mins_per_mile ASC
+        LIMIT 5
+        '''
+    )
