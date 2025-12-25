@@ -135,7 +135,7 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     logging.info(f"Starting upload_data_to_duckdb() function")
     
     # Get all the files in the "data" directory
-    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'strava_data'))
     csv_files = sorted(glob.glob(os.path.join(data_dir, '*.csv')))
     logging.info(f"Found CSV files, getting the latest file from data directory: {data_dir}")
 
