@@ -9,3 +9,6 @@
 
 # Ignore all .docx files
 *.docx
+
+# Ignore all .fit files
+*.fit
