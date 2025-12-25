@@ -121,8 +121,62 @@ runs_in_2025 = duckdb.sql('''
 ##########################################################################################
 # 2025 YEAR IN SPORT
 ##########################################################################################
+
 #%%
-# Number of hours active (not just running)
+# Total days active (not just running)
+# Per month and grand total
+duckdb.sql('''
+           WITH monthly AS (
+            SELECT distinct start_date_local_yyyy_mm, count(distinct(date(start_date_local))) AS total_days_active
+            FROM staging
+            WHERE year(start_date_local) = 2025
+            GROUP BY ALL
+            HAVING COUNT(*) >= 1
+            ORDER BY start_date_local_yyyy_mm
+           )
+            , total AS (
+                SELECT 'Grand total',count(distinct(date(start_date_local))) AS total_days_active
+                FROM staging
+                WHERE year(start_date_local) = 2025
+                GROUP BY ALL
+                HAVING COUNT(*) >= 1
+            )
+            SELECT * FROM monthly
+            UNION ALL
+            SELECT * FROM total
+           '''
+   )
+
+#%%
+# Total distance ran
+# Per month and grand total
+duckdb.sql('''
+           WITH monthly AS (
+                SELECT start_date_local_yyyy_mm,round(sum(distance_miles),2) as total_miles
+                FROM runs_in_2025
+                GROUP BY start_date_local_yyyy_mm
+                ORDER BY start_date_local_yyyy_mm
+            )
+            , total AS (
+                SELECT 'Grand total',round(sum(distance_miles),2) AS total_miles
+                FROM runs_in_2025
+            )
+            , monthly_avg AS
+                (
+                SELECT 'Monthly average',round(sum(distance_miles)/12,2)
+                FROM runs_in_2025
+                )
+            SELECT * FROM monthly
+            UNION ALL
+            SELECT * FROM total
+            UNION ALL
+            SELECT *
+            FROM monthly_avg
+           '''
+   )
+
+#%%
+# Total time active (not just running)
 # Per month and grand total
 duckdb.sql('''
            WITH monthly AS (
@@ -154,61 +208,9 @@ duckdb.sql('''
            '''
    )
 
-#%%
-# Number of days active (not just running)
-# Per month and grand total
-duckdb.sql('''
-           WITH monthly AS (
-            SELECT distinct start_date_local_yyyy_mm, count(distinct(date(start_date_local))) AS total_days_active
-            FROM staging
-            WHERE year(start_date_local) = 2025
-            GROUP BY ALL
-            HAVING COUNT(*) >= 1
-            ORDER BY start_date_local_yyyy_mm
-           )
-            , total AS (
-                SELECT 'Grand total',count(distinct(date(start_date_local))) AS total_days_active
-                FROM staging
-                WHERE year(start_date_local) = 2025
-                GROUP BY ALL
-                HAVING COUNT(*) >= 1
-            )
-            SELECT * FROM monthly
-            UNION ALL
-            SELECT * FROM total
-           '''
-   )
 
 #%%
-# How many miles did I run in 2025?
-# Per month and grand total
-duckdb.sql('''
-           WITH monthly AS (
-                SELECT start_date_local_yyyy_mm,round(sum(distance_miles),2) as total_miles
-                FROM runs_in_2025
-                GROUP BY start_date_local_yyyy_mm
-                ORDER BY start_date_local_yyyy_mm
-            )
-            , total AS (
-                SELECT 'Grand total',round(sum(distance_miles),2) AS total_miles
-                FROM runs_in_2025
-            )
-            , monthly_avg AS
-                (
-                SELECT 'Monthly average',round(sum(distance_miles)/12,2)
-                FROM runs_in_2025
-                )
-            SELECT * FROM monthly
-            UNION ALL
-            SELECT * FROM total
-            UNION ALL
-            SELECT *
-            FROM monthly_avg
-           '''
-   )
-
-#%%
-# How much elevation gain did I run in 2025?
+# Total elevation run
 # Per month and grand total
 # TODO: divide by mt everest height for number of times climbed
 duckdb.sql('''
@@ -229,7 +231,7 @@ duckdb.sql('''
    )
 
 #%%
-# How much total time did I run in hours in 2025?
+# Total time run
 # Per month and grand total
 duckdb.sql('''
             WITH monthly AS (
@@ -249,7 +251,24 @@ duckdb.sql('''
    )
 
 #%%
-# Longest daily streak of activity
+# Longest weekly activity streak (not just run)
+# There are 52 weeks populated so I had at least one activity per week in 2025
+duckdb.sql('''
+        SELECT count(DISTINCT
+            week(start_date_local)) AS activity_weeks
+        FROM staging
+        WHERE year(start_date_local) = 2025 
+    '''
+)
+
+
+# %%
+##########################################################################################
+# ADDITIONAL QUESTIONS
+##########################################################################################
+
+#%%
+# Longest daily streak of activity (not just run)
 duckdb.sql('''
     -- 1. One row per active day w/ assumption of if there is an entry in the Strava data, there was an activity logged
     WITH activity_days AS (
@@ -310,19 +329,6 @@ duckdb.sql('''
     GROUP BY streak_id,streak_start,streak_end
 '''
 )
-
-
-#%%
-# Longest weekly activity streak
-# There are 52 weeks populated so I had at least one activity per week in 2025
-duckdb.sql('''
-        SELECT count(DISTINCT
-            week(start_date_local)) AS activity_weeks
-        FROM staging
-        WHERE year(start_date_local) = 2025 
-    '''
-)
-
 
 #%%
 # Longest weekly running streak
@@ -386,12 +392,6 @@ duckdb.sql('''
     GROUP BY streak_id,streak_start,streak_end
     '''
 )
-
-
-# %%
-##########################################################################################
-# ADDITIONAL QUESTIONS
-##########################################################################################
 
 #%%
 # How many miles of each activity type did I do in 2025?
