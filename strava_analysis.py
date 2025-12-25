@@ -6,7 +6,7 @@ from jinja2 import Template
 
 #%%
 # Set up logging
-init_paths = my_utils.initialize_paths("logs", "data", "strava_export")
+init_paths = my_utils.initialize_paths("logs", "strava_data", "strava_export")
 
 my_utils.setup_logging(init_paths["log_file_path"])
 logging.info("Starting Strava Analysis Pipeline")
