@@ -445,6 +445,9 @@ duckdb.sql('''
     '''
 )
 
+#%%
+# Run with most kudos
+
 
 # %%
 ##########################################################################################
@@ -729,7 +732,6 @@ duckdb.sql(f'''
 '''
 )
 
-
 #%%
 # What distance did I run on average?
 duckdb.sql('''
@@ -776,3 +778,39 @@ duckdb.sql('''
    )
 
 # %%
+# Top y longest runs in terms of distance
+y = 10
+duckdb.sql(f'''
+    WITH ranked_runs AS (
+        SELECT
+            name
+            ,DATE(start_date_local) AS start_date_local
+            ,distance_miles
+            ,average_pace_mins_per_mile
+            ,kudos_count
+            ,RANK() OVER (
+                ORDER BY distance_miles DESC
+            ) AS distance_rank
+        FROM runs_in_2025
+    )
+    SELECT
+        name
+        ,start_date_local
+        ,distance_miles
+        ,average_pace_mins_per_mile
+        ,kudos_count
+    FROM ranked_runs
+    WHERE distance_rank <= {y}
+    ORDER BY distance_rank
+    '''
+   )
+
+#%%
+# Distance histogram
+duckdb.sql(f'''
+    SELECT DISTINCT(ROUND(distance_miles,0)) AS nearest_whole_mile, COUNT(*) AS frequency
+    FROM runs_in_2025
+    GROUP BY ALL
+    ORDER BY COUNT(*) DESC
+    '''
+   )
