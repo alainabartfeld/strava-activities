@@ -384,7 +384,6 @@ duckdb.sql('''
 
 #%%
 # Longest weekly running streak
-# TODO: Convert the week numbers back into activity_dates to be more intuitive
 duckdb.sql('''
     -- 1. One row per run week w/ assumption of if there is an entry in the Strava data, there was an activity logged
     WITH activity_weeks AS (
@@ -435,8 +434,8 @@ duckdb.sql('''
     -- 6. Max streak and when
     SELECT
         MAX(streak_length) AS max_running_streak_week
-        ,streak_start
-        ,streak_end
+        ,DATE_TRUNC('week', STRPTIME(CAST(2025 AS VARCHAR) || '-' || CAST(streak_start AS VARCHAR) || '-4', '%G-%V-%u')::DATE) AS streak_week_start_date
+        ,DATE_TRUNC('week', STRPTIME(CAST(2025 AS VARCHAR) || '-' || CAST(streak_end AS VARCHAR) || '-4', '%G-%V-%u')::DATE) AS streak_week_start_date
     FROM streak_lengths
     WHERE streak_length = 
         (SELECT MAX(streak_length)
