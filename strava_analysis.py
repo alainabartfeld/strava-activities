@@ -446,8 +446,32 @@ duckdb.sql('''
 )
 
 #%%
-# Run with most kudos
-
+# Top z runs with most kudos
+z = 10
+duckdb.sql(f'''
+    WITH ranked_runs AS (
+        SELECT
+            name
+            ,DATE(start_date_local) AS start_date_local
+            ,average_pace_mins_per_mile
+            ,distance_miles
+            ,kudos_count
+            ,RANK() OVER (
+                ORDER BY kudos_count DESC
+            ) AS kudos_rank
+        FROM runs_in_2025
+    )
+    SELECT
+        name
+        ,start_date_local
+        ,average_pace_mins_per_mile
+        ,distance_miles
+        ,kudos_count
+    FROM ranked_runs
+    WHERE kudos_rank <= {z}
+    ORDER BY kudos_rank
+'''
+)
 
 # %%
 ##########################################################################################
