@@ -6,3 +6,6 @@
 
 # Ignore all .pyc files
 *.pyc
+
+# Ignore all .docx files
+*.docx

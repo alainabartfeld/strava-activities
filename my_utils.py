@@ -118,7 +118,7 @@ def download_data_from_strava(csv_path: str, activities_url: str = "https://www.
     # ---------------------------------------------------------
     # convert to data frame
     df = pd.DataFrame(all_activities)
-    # add loaded date
+    # add loaded date in PST
     df["loaded_date"] = get_today_as_timestamp()
     # convert to csv
     if not csv_path:
@@ -135,11 +135,11 @@ def upload_data_to_duckdb(df: pd.DataFrame):
     logging.info(f"Starting upload_data_to_duckdb() function")
     
     # Get all the files in the "data" directory
-    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'strava_data'))
     csv_files = sorted(glob.glob(os.path.join(data_dir, '*.csv')))
     logging.info(f"Found CSV files, getting the latest file from data directory: {data_dir}")
 
-    # Get the latest file based on filename date (ignore any _N suffix entirely)
+    # Get the latest file based on filename date
     file_info = []  # list of tuples: (date, filepath)
 
     for f in csv_files:
