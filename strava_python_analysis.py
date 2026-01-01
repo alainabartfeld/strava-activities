@@ -117,18 +117,6 @@ plt.title('Weekly Mileage')
 plt.show()
 
 # %%
-# Pace distribution
-subset = df_runs_2025[df_runs_2025['average_pace_mins_per_mile'].notna()]
-
-plt.figure()
-plt.hist(subset['average_pace_mins_per_mile'], bins=30)
-plt.xlabel('Average Pace (min/mi)')
-plt.ylabel('Run Count')
-plt.title('Pace Distribution')
-
-plt.show()
-
-# %%
 # Cumulative mileage
 df_sorted = df_runs_2025.sort_values('start_date_local').copy()
 df_sorted['cumulative_miles'] = df_sorted['distance_miles'].cumsum()
