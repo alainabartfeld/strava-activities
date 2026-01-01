@@ -2,7 +2,6 @@
 import my_utils
 import data_load
 import duckdb
-import logging
 from jinja2 import Template
 
 #%%
@@ -340,13 +339,15 @@ mt_everest_height = 29032
 duckdb.sql(f'''
            WITH monthly AS (
                 SELECT start_date_local_yyyy_mm,round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_running
-                FROM runs_in_2025
+                FROM staging
+                WHERE year(start_date_local) = 2025
                 GROUP BY start_date_local_yyyy_mm
                 ORDER BY start_date_local_yyyy_mm
                )
             , total AS (
                 SELECT 'Grand total',round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_running
-                FROM runs_in_2025
+                FROM staging
+                WHERE year(start_date_local) = 2025
             )
             , everest AS (
                 SELECT 'Number of times climbed Mt. Everest'
@@ -436,11 +437,12 @@ duckdb.sql('''
 
 #%%
 # Top z runs with most kudos
-z = 10
+z = 1
 duckdb.sql(f'''
     WITH ranked_runs AS (
         SELECT
-            name
+            id
+            ,name
             ,DATE(start_date_local) AS start_date_local
             ,average_pace_mins_per_mile
             ,distance_miles
@@ -451,7 +453,8 @@ duckdb.sql(f'''
         FROM runs_in_2025
     )
     SELECT
-        name
+        id
+        ,name
         ,start_date_local
         ,average_pace_mins_per_mile
         ,distance_miles
@@ -827,3 +830,31 @@ duckdb.sql(f'''
     ORDER BY COUNT(*) DESC
     '''
    )
+
+#%%
+# Pace distribution
+duckdb.sql(f'''
+    SELECT DISTINCT(ROUND(average_pace_mins_per_mile,0)) AS nearest_whole_pace, COUNT(*) AS frequency
+    FROM runs_in_2025
+    GROUP BY ALL
+    ORDER BY COUNT(*) DESC
+    '''
+   )
+
+#%%
+# Weekly average mileage running
+duckdb.sql('''
+            SELECT ROUND(SUM(distance_miles)/52,2) AS weekly_avg_mileage
+            FROM runs_in_2025
+           '''
+   )
+
+# %%
+# Number of long runs
+duckdb.sql(f'''
+    SELECT COUNT(*) AS frequency
+    FROM runs_in_2025
+    WHERE distance_miles >= 13
+    '''
+   )
+# %%
