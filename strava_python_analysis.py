@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pandas.plotting import scatter_matrix
 import numpy as np
+import seaborn as sns
 
 #%%
 staging = strava_year_in_sport.staging
@@ -130,3 +131,50 @@ plt.xlabel('Date')
 plt.ylabel('Cumulative Miles')
 plt.title('Cumulative Running Mileage')
 plt.show()
+
+#%%
+# heatmap
+# Daily total distance
+daily = (
+    df_runs_2025
+    .groupby(df_runs_2025['start_date_local'].dt.date)['distance_miles']
+    .sum()
+    .reset_index()
+)
+
+daily['start_date_local'] = pd.to_datetime(daily['start_date_local'])
+daily['week'] = daily['start_date_local'].dt.isocalendar().week
+daily['year'] = daily['start_date_local'].dt.year
+daily['dow'] = daily['start_date_local'].dt.weekday  # Mon=0
+
+heatmap_df = daily.pivot_table(
+    index='dow',
+    columns='week',
+    values='distance_miles',
+    aggfunc='sum'
+)
+
+#%%
+plt.figure(figsize=(15, 4))
+sns.heatmap(
+    heatmap_df,
+    cmap='Greens',
+    linewidths=0.5,
+    square=True,
+    linecolor="white",
+    cbar_kws={"label": "Miles", "shrink": 0.6},
+    vmin=0
+)
+
+plt.yticks(
+    ticks=[0.5,1.5,2.5,3.5,4.5,5.5,6.5],
+    labels=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    rotation=0
+)
+
+plt.xlabel('Week of Year')
+plt.ylabel('Day of Week')
+plt.title('Running Distance Heatmap')
+plt.show()
+
+# %%
