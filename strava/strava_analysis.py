@@ -1,13 +1,13 @@
 #%%
-import my_utils
-import data_load
+import my_strava_utils
+import get_strava_data
 import duckdb
 import logging
 from jinja2 import Template
 
 #%%
 # Get the data
-data = data_load.data
+data = get_strava_data.data
 
 #%%
 # Clean up the house
