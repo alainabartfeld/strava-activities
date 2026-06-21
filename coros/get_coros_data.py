@@ -212,13 +212,6 @@ class CorosClient:
             activities_raw = page_data.get("dataList", [])
             total_pages = page_data.get("totalPage", 1)
 
-            # On first page, dump one raw activity to see all available fields
-            if page == 1 and activities_raw:
-                raw_sample_path = Path(__file__).parent / "coros_data" / "_raw_activity_sample.json"
-                with open(raw_sample_path, "w") as f:
-                    json.dump(activities_raw[0], f, indent=2)
-                logger.info(f"Dumped raw activity sample to {raw_sample_path}")
-
             for act in activities_raw:
                 try:
                     sport_code = act.get("sportType", 900)
