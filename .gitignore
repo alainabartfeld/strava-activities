@@ -9,3 +9,8 @@
 
 # Ignore all .docx files
 *.docx
+
+# Ignore all .gpx, .fit, and .json files
+*.gpx
+*.fit
+*.json
