@@ -827,3 +827,59 @@ duckdb.sql(f'''
     ORDER BY COUNT(*) DESC
     '''
    )
+
+#%%
+##########################################################################################
+# 2026 JUNE CHECK IN
+##########################################################################################
+
+# Activities in 2026 as of mid June
+activities_in_2026 = duckdb.sql('''
+            SELECT *  
+            FROM staging
+            WHERE year(start_date_local) = 2026
+            --AND type = 'Run'
+           '''
+   )
+
+#%%
+# Activity distribution
+duckdb.sql('''
+           SELECT distinct type, count(*) AS activity_count
+           FROM activities_in_2026
+           GROUP BY type
+           ORDER BY activity_count DESC
+           '''
+   )
+
+# %%
+# Splits distribution
+duckdb.sql('''
+           WITH splits AS (
+            SELECT 
+                split_part(name, ': ', 1) AS lift_name
+                -- If lift_area is empty (I didnt specify the area in my workout name), then take the second word from lift_name (e.g., "Pilates" from "Morning Pilates")
+                , CASE 
+                    WHEN split_part(name, ': ', 2) = '' 
+                    THEN split_part(split_part(name, ': ', 1), ' ', 2)
+                    ELSE split_part(name, ': ', 2)
+                END AS lift_area
+            FROM activities_in_2026
+            WHERE type = 'WeightTraining'
+           )
+           , dist AS (
+                SELECT distinct lift_area, count(*) AS count
+                FROM splits
+                GROUP BY ALL
+                ORDER BY count DESC
+           )
+           , total AS (
+                SELECT 'Total lifts', count(*)
+                FROM activities_in_2026
+                WHERE type = 'WeightTraining'
+           )
+           SELECT * FROM dist
+           UNION ALL
+           SELECT * FROM total
+           '''
+   )
