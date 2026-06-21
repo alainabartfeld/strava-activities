@@ -838,7 +838,6 @@ activities_in_2026 = duckdb.sql('''
             SELECT *  
             FROM staging
             WHERE year(start_date_local) = 2026
-            --AND type = 'Run'
            '''
    )
 
@@ -853,7 +852,7 @@ duckdb.sql('''
    )
 
 # %%
-# Splits distribution
+# Weight splits distribution
 duckdb.sql('''
            WITH splits AS (
             SELECT 
@@ -874,12 +873,27 @@ duckdb.sql('''
                 ORDER BY count DESC
            )
            , total AS (
-                SELECT 'Total lifts', count(*)
+                SELECT 'Total Lifts', count(*)
                 FROM activities_in_2026
                 WHERE type = 'WeightTraining'
            )
            SELECT * FROM dist
            UNION ALL
            SELECT * FROM total
+           '''
+   )
+# %%
+# Weights in 2025 vs. 2026
+# Didnt label my weight sessions with the same level of detail in 2025 so just looking at total count of weight sessions per year
+duckdb.sql('''
+           WITH all_weights AS (
+            SELECT *
+            FROM staging
+            WHERE type = 'WeightTraining'
+           )
+           SELECT year(start_date_local) AS year, count(*) AS weight_sessions
+           FROM all_weights
+           GROUP BY all
+           ORDER BY year
            '''
    )
