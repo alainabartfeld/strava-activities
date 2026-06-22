@@ -833,7 +833,7 @@ duckdb.sql(f'''
 #%%
 # Distance histogram
 duckdb.sql(f'''
-    SELECT {year} as year, DISTINCT(ROUND(distance_miles,0)) AS nearest_whole_mile, COUNT(*) AS frequency
+    SELECT DISTINCT(ROUND(distance_miles,0)) AS nearest_whole_mile, {year} as year, COUNT(*) AS frequency
     FROM runs_in_year
     GROUP BY ALL
     ORDER BY COUNT(*) DESC
