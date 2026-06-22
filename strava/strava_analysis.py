@@ -98,27 +98,31 @@ staging = duckdb.sql(f"""
 """)
 
 #%%
-# Only runs in 2025
-runs_in_2025 = duckdb.sql('''
-            SELECT *  
+# Set the year for analysis
+year = 2026
+
+#%%
+# Only runs in the selected year
+runs_in_year = duckdb.sql(f'''
+            SELECT *
             FROM staging
-            WHERE year(start_date_local) = 2025
+            WHERE year(start_date_local) = {year}
             AND type = 'Run'
            '''
    )
 
 #%%
 ##########################################################################################
-# 2025 YEAR IN SPORT
+# YEAR IN SPORT
 ##########################################################################################
 
 #%%
 # Top sport
-duckdb.sql('''
-            SELECT type, COUNT(*) AS activity_frequency
+duckdb.sql(f'''
+            SELECT {year} as year, type, COUNT(*) AS activity_frequency
             FROM staging
-            WHERE year(start_date_local) = 2025
-            GROUP BY type
+            WHERE year(start_date_local) = {year}
+            GROUP BY ALL
             ORDER BY activity_frequency DESC
            '''
    )
@@ -126,26 +130,27 @@ duckdb.sql('''
 #%%
 # Total days active (not just running)
 # Per month and grand total
-duckdb.sql('''
+days_in_year = 366 if year % 4 == 0 and (year % 100 != 0 or year % 400 == 0) else 365
+duckdb.sql(f'''
            WITH monthly AS (
-            SELECT distinct start_date_local_yyyy_mm, count(distinct(date(start_date_local))) AS total_days_active
+            SELECT {year} as year, start_date_local_yyyy_mm, count(distinct(date(start_date_local))) AS total_days_active
             FROM staging
-            WHERE year(start_date_local) = 2025
+            WHERE year(start_date_local) = {year}
             GROUP BY ALL
             HAVING COUNT(*) >= 1
             ORDER BY start_date_local_yyyy_mm
            )
             , total AS (
-                SELECT 'Grand total'
+                SELECT {year} as year, 'Grand total'
                     ,count(distinct(date(start_date_local))) AS total_days_active
                 FROM staging
-                WHERE year(start_date_local) = 2025
+                WHERE year(start_date_local) = {year}
                 GROUP BY ALL
                 HAVING COUNT(*) >= 1
             )
             , pct AS (
-                SELECT 'Percentage of days active'
-                , CONCAT(CAST(ROUND((total_days_active/365)*100,2) AS VARCHAR),'%')
+                SELECT {year} as year, 'Percentage of days active'
+                , CONCAT(CAST(ROUND((total_days_active/{days_in_year})*100,2) AS VARCHAR),'%')
                 FROM total
             )
             SELECT * FROM monthly
@@ -159,24 +164,24 @@ duckdb.sql('''
 #%%
 # Total days just running
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-            SELECT distinct start_date_local_yyyy_mm, count(distinct(date(start_date_local))) AS total_days_running
-            FROM runs_in_2025
+            SELECT {year} as year, start_date_local_yyyy_mm, count(distinct(date(start_date_local))) AS total_days_running
+            FROM runs_in_year
             GROUP BY ALL
             HAVING COUNT(*) >= 1
             ORDER BY start_date_local_yyyy_mm
            )
             , total AS (
-                SELECT 'Grand total'
+                SELECT {year} as year, 'Grand total'
                     ,count(distinct(date(start_date_local))) AS total_days_running
-                FROM runs_in_2025
+                FROM runs_in_year
                 GROUP BY ALL
                 HAVING COUNT(*) >= 1
             )
             , pct AS (
-                SELECT 'Percentage of days active'
-                , CONCAT(CAST(ROUND((total_days_running/365)*100,2) AS VARCHAR),'%')
+                SELECT {year} as year, 'Percentage of days active'
+                , CONCAT(CAST(ROUND((total_days_running/{days_in_year})*100,2) AS VARCHAR),'%')
                 FROM total
             )
             SELECT * FROM monthly
@@ -190,24 +195,24 @@ duckdb.sql('''
 #%%
 # Total distance active (not just running)
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-                SELECT start_date_local_yyyy_mm,round(sum(distance_miles),2) as total_miles_active
+                SELECT {year} as year, start_date_local_yyyy_mm,round(sum(distance_miles),2) as total_miles_active
                 FROM staging
-                WHERE year(start_date_local) = 2025
-                GROUP BY start_date_local_yyyy_mm
+                WHERE year(start_date_local) = {year}
+                GROUP BY ALL
                 ORDER BY start_date_local_yyyy_mm
             )
             , total AS (
-                SELECT 'Grand total',round(sum(distance_miles),2) AS total_miles_active
+                SELECT {year} as year, 'Grand total',round(sum(distance_miles),2) AS total_miles_active
                 FROM staging
-                WHERE year(start_date_local) = 2025
+                WHERE year(start_date_local) = {year}
             )
             , monthly_avg AS
                 (
-                SELECT 'Monthly average',round(sum(distance_miles)/12,2)
+                SELECT {year} as year, 'Monthly average',round(sum(distance_miles)/12,2)
                 FROM staging
-                WHERE year(start_date_local) = 2025
+                WHERE year(start_date_local) = {year}
                 )
             SELECT * FROM monthly
             UNION ALL
@@ -221,21 +226,21 @@ duckdb.sql('''
 #%%
 # Total distance just running
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-                SELECT start_date_local_yyyy_mm,round(sum(distance_miles),2) as total_miles_running
-                FROM runs_in_2025
-                GROUP BY start_date_local_yyyy_mm
+                SELECT {year} as year, start_date_local_yyyy_mm,round(sum(distance_miles),2) as total_miles_running
+                FROM runs_in_year
+                GROUP BY ALL
                 ORDER BY start_date_local_yyyy_mm
             )
             , total AS (
-                SELECT 'Grand total',round(sum(distance_miles),2) AS total_miles_running
-                FROM runs_in_2025
+                SELECT {year} as year, 'Grand total',round(sum(distance_miles),2) AS total_miles_running
+                FROM runs_in_year
             )
             , monthly_avg AS
                 (
-                SELECT 'Monthly average',round(sum(distance_miles)/12,2)
-                FROM runs_in_2025
+                SELECT {year} as year, 'Monthly average',round(sum(distance_miles)/12,2)
+                FROM runs_in_year
                 )
             SELECT * FROM monthly
             UNION ALL
@@ -249,27 +254,27 @@ duckdb.sql('''
 #%%
 # Total time active (not just running)
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-            SELECT distinct start_date_local_yyyy_mm, round(sum(moving_time_hrs),2) as moving_time_hrs_active
+            SELECT {year} as year, start_date_local_yyyy_mm, round(sum(moving_time_hrs),2) as moving_time_hrs_active
             FROM staging
-            WHERE year(start_date_local) = 2025
+            WHERE year(start_date_local) = {year}
             GROUP BY ALL
             HAVING COUNT(*) >= 1
             ORDER BY start_date_local_yyyy_mm
            )
             , total AS (
-                SELECT 'Grand total',round(sum(moving_time_hrs),2) as moving_time_hrs_active
+                SELECT {year} as year, 'Grand total',round(sum(moving_time_hrs),2) as moving_time_hrs_active
                 FROM staging
-                WHERE year(start_date_local) = 2025
+                WHERE year(start_date_local) = {year}
                 GROUP BY ALL
                 HAVING COUNT(*) >= 1
             )
             , monthly_avg AS
                 (
-                SELECT 'Monthly average',round(sum(moving_time_hrs)/12,2)
+                SELECT {year} as year, 'Monthly average',round(sum(moving_time_hrs)/12,2)
                 FROM staging
-                WHERE year(start_date_local) = 2025
+                WHERE year(start_date_local) = {year}
                 )
             SELECT * FROM monthly
             UNION ALL
@@ -283,24 +288,24 @@ duckdb.sql('''
 #%%
 # Total time just running
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-            SELECT distinct start_date_local_yyyy_mm, round(sum(moving_time_hrs),2) as moving_time_hrs_running
-            FROM runs_in_2025
+            SELECT {year} as year, start_date_local_yyyy_mm, round(sum(moving_time_hrs),2) as moving_time_hrs_running
+            FROM runs_in_year
             GROUP BY ALL
             HAVING COUNT(*) >= 1
             ORDER BY start_date_local_yyyy_mm
            )
             , total AS (
-                SELECT 'Grand total',round(sum(moving_time_hrs),2) as moving_time_hrs_running
-                FROM runs_in_2025
+                SELECT {year} as year, 'Grand total',round(sum(moving_time_hrs),2) as moving_time_hrs_running
+                FROM runs_in_year
                 GROUP BY ALL
                 HAVING COUNT(*) >= 1
             )
             , monthly_avg AS
                 (
-                SELECT 'Monthly average',round(sum(moving_time_hrs)/12,2)
-                FROM runs_in_2025
+                SELECT {year} as year, 'Monthly average',round(sum(moving_time_hrs)/12,2)
+                FROM runs_in_year
                 )
             SELECT * FROM monthly
             UNION ALL
@@ -314,18 +319,18 @@ duckdb.sql('''
 #%%
 # Total elevation active (not just running)
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-                SELECT start_date_local_yyyy_mm,round(sum(total_elevation_gain_feet),2) as elevation_gain_feet_active
+                SELECT {year} as year, start_date_local_yyyy_mm,round(sum(total_elevation_gain_feet),2) as elevation_gain_feet_active
                 FROM staging
-                WHERE year(start_date_local) = 2025
-                GROUP BY start_date_local_yyyy_mm
+                WHERE year(start_date_local) = {year}
+                GROUP BY ALL
                 ORDER BY start_date_local_yyyy_mm
                )
             , total AS (
-                SELECT 'Grand total',round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_active
+                SELECT {year} as year, 'Grand total',round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_active
                 FROM staging
-                WHERE year(start_date_local) = 2025
+                WHERE year(start_date_local) = {year}
             )
             SELECT * FROM monthly
             UNION ALL
@@ -339,17 +344,17 @@ duckdb.sql('''
 mt_everest_height = 29032
 duckdb.sql(f'''
            WITH monthly AS (
-                SELECT start_date_local_yyyy_mm,round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_running
-                FROM runs_in_2025
-                GROUP BY start_date_local_yyyy_mm
+                SELECT {year} as year, start_date_local_yyyy_mm,round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_running
+                FROM runs_in_year
+                GROUP BY ALL
                 ORDER BY start_date_local_yyyy_mm
                )
             , total AS (
-                SELECT 'Grand total',round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_running
-                FROM runs_in_2025
+                SELECT {year} as year, 'Grand total',round(sum(total_elevation_gain_feet),2) AS elevation_gain_feet_running
+                FROM runs_in_year
             )
             , everest AS (
-                SELECT 'Number of times climbed Mt. Everest'
+                SELECT {year} as year, 'Number of times climbed Mt. Everest'
                     , ROUND(elevation_gain_feet_running / {mt_everest_height},2)
                 FROM total
             )
@@ -363,23 +368,22 @@ duckdb.sql(f'''
 
 #%%
 # Longest weekly activity streak (not just running)
-# There are 52 weeks populated so I had at least one activity per week in 2025
-duckdb.sql('''
-        SELECT count(DISTINCT
+duckdb.sql(f'''
+        SELECT {year} as year, count(DISTINCT
             week(start_date_local)) AS activity_weeks
         FROM staging
-        WHERE year(start_date_local) = 2025 
+        WHERE year(start_date_local) = {year}
     '''
 )
 
 #%%
 # Longest weekly running streak
-duckdb.sql('''
+duckdb.sql(f'''
     -- 1. One row per run week w/ assumption of if there is an entry in the Strava data, there was an activity logged
     WITH activity_weeks AS (
         SELECT DISTINCT
             week(start_date_local) AS activity_week
-        FROM runs_in_2025
+        FROM runs_in_year
     ),
 
     -- 2. Order and look at previous day
@@ -423,11 +427,12 @@ duckdb.sql('''
 
     -- 6. Max streak and when
     SELECT
-        MAX(streak_length) AS max_running_streak_week
-        ,DATE_TRUNC('week', STRPTIME(CAST(2025 AS VARCHAR) || '-' || CAST(streak_start AS VARCHAR) || '-4', '%G-%V-%u')::DATE) AS streak_week_start_date
-        ,DATE_TRUNC('week', STRPTIME(CAST(2025 AS VARCHAR) || '-' || CAST(streak_end AS VARCHAR) || '-4', '%G-%V-%u')::DATE) AS streak_week_start_date
+        {year} as year
+        ,MAX(streak_length) AS max_running_streak_week
+        ,DATE_TRUNC('week', STRPTIME(CAST({year} AS VARCHAR) || '-' || CAST(streak_start AS VARCHAR) || '-4', '%G-%V-%u')::DATE) AS streak_week_start_date
+        ,DATE_TRUNC('week', STRPTIME(CAST({year} AS VARCHAR) || '-' || CAST(streak_end AS VARCHAR) || '-4', '%G-%V-%u')::DATE) AS streak_week_end_date
     FROM streak_lengths
-    WHERE streak_length = 
+    WHERE streak_length =
         (SELECT MAX(streak_length)
         FROM streak_lengths)
     GROUP BY streak_id,streak_start,streak_end
@@ -440,7 +445,8 @@ z = 10
 duckdb.sql(f'''
     WITH ranked_runs AS (
         SELECT
-            name
+            {year} as year
+            ,name
             ,DATE(start_date_local) AS start_date_local
             ,average_pace_mins_per_mile
             ,distance_miles
@@ -448,10 +454,11 @@ duckdb.sql(f'''
             ,RANK() OVER (
                 ORDER BY kudos_count DESC
             ) AS kudos_rank
-        FROM runs_in_2025
+        FROM runs_in_year
     )
     SELECT
-        name
+        year
+        ,name
         ,start_date_local
         ,average_pace_mins_per_mile
         ,distance_miles
@@ -469,13 +476,13 @@ duckdb.sql(f'''
 
 #%%
 # Longest daily streak of activity (not just run)
-duckdb.sql('''
+duckdb.sql(f'''
     -- 1. One row per active day w/ assumption of if there is an entry in the Strava data, there was an activity logged
     WITH activity_days AS (
         SELECT DISTINCT
             DATE(start_date_local) AS activity_date
         FROM staging
-        WHERE year(start_date_local) = 2025
+        WHERE year(start_date_local) = {year}
     ),
 
     -- 2. Order and look at previous day
@@ -519,11 +526,12 @@ duckdb.sql('''
 
     -- 6. Max streak and when
     SELECT
-        MAX(streak_length) AS max_activity_streak_days
+        {year} as year
+        ,MAX(streak_length) AS max_activity_streak_days
         ,streak_start
         ,streak_end
     FROM streak_lengths
-    WHERE streak_length = 
+    WHERE streak_length =
         (SELECT MAX(streak_length)
         FROM streak_lengths)
     GROUP BY streak_id,streak_start,streak_end
@@ -532,35 +540,35 @@ duckdb.sql('''
 
 
 #%%
-# How many miles of each activity type did I do in 2025?
-duckdb.sql('''
-            SELECT type, round(sum(distance_miles),2) AS total_miles
+# How many miles of each activity type did I do?
+duckdb.sql(f'''
+            SELECT {year} as year, type, round(sum(distance_miles),2) AS total_miles
             FROM staging
-            WHERE year(start_date_local) = 2025
-            GROUP BY type
+            WHERE year(start_date_local) = {year}
+            GROUP BY ALL
             HAVING total_miles > 0
             ORDER BY total_miles DESC
            '''
    )
 
 # %%
-# How many runs did I do in 2025?
+# How many runs did I do?
 # Per month and grand total
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-                SELECT start_date_local_yyyy_mm, count(*) AS total_runs
-                FROM runs_in_2025
-                GROUP BY start_date_local_yyyy_mm
+                SELECT {year} as year, start_date_local_yyyy_mm, count(*) AS total_runs
+                FROM runs_in_year
+                GROUP BY ALL
                 ORDER BY start_date_local_yyyy_mm
             )
             , total AS (
-                SELECT 'Grand total', count(*) AS total_runs
-                FROM runs_in_2025
+                SELECT {year} as year, 'Grand total', count(*) AS total_runs
+                FROM runs_in_year
             )
             , monthly_avg AS
                 (
-                SELECT 'Monthly average',round(count(*)/12,0)
-                FROM runs_in_2025
+                SELECT {year} as year, 'Monthly average',round(count(*)/12,0)
+                FROM runs_in_year
                 )
             SELECT * FROM monthly
             UNION ALL
@@ -572,30 +580,30 @@ duckdb.sql('''
    )
 
 #%%
-# How many of each activity type did I do in 2025?
-duckdb.sql('''
-            SELECT type,count(*) AS activity_count
+# How many of each activity type did I do?
+duckdb.sql(f'''
+            SELECT {year} as year, type,count(*) AS activity_count
             FROM staging
-            WHERE year(start_date_local)=2025
-            GROUP BY type
+            WHERE year(start_date_local)={year}
+            GROUP BY ALL
             ORDER BY activity_count DESC
            '''
    )
 
 
 #%%
-# How did moving time differ from activity time in 2025?
-duckdb.sql('''
-            SELECT round(sum(moving_time_hrs),2) AS total_moving_time_hrs
+# How did moving time differ from activity time?
+duckdb.sql(f'''
+            SELECT {year} as year, round(sum(moving_time_hrs),2) AS total_moving_time_hrs
                 ,round(sum(elapsed_time_hrs),2) AS total_elapsed_time_hrs
                 ,concat(round((total_moving_time_hrs/total_elapsed_time_hrs)*100,2),'%') as pct_moving_time
-            FROM runs_in_2025
+            FROM runs_in_year
            '''
    )
 
 #%%
 # How much did these metrics change YoY?
-# 2023-2025 metrics
+# 2023 and onward metrics
 basic_table = duckdb.sql('''
         SELECT 
             year(start_date_local) AS year
@@ -703,16 +711,16 @@ duckdb.sql(format_yoy_sql_template.render(metrics=pct_change_measures))
 
 #%%
 # What activity had the fastest average pace?
-duckdb.sql('''
-        SELECT name
+duckdb.sql(f'''
+        SELECT {year} as year, name
             ,date(start_date_local) AS start_date
             ,average_pace_mins_per_mile
             ,distance_miles
             ,kudos_count
-        FROM runs_in_2025
+        FROM runs_in_year
         WHERE average_pace_mins_per_mile =
             (SELECT MIN(average_pace_mins_per_mile)
-            FROM runs_in_2025
+            FROM runs_in_year
             )
         '''
     )
@@ -723,7 +731,8 @@ x = 5
 duckdb.sql(f'''
     WITH ranked_runs AS (
         SELECT
-            name
+            {year} as year
+            ,name
             ,DATE(start_date_local) AS start_date_local
             ,average_pace_mins_per_mile
             ,distance_miles
@@ -731,10 +740,11 @@ duckdb.sql(f'''
             ,RANK() OVER (
                 ORDER BY average_pace_mins_per_mile ASC
             ) AS pace_rank
-        FROM runs_in_2025
+        FROM runs_in_year
     )
     SELECT
-        name
+        year
+        ,name
         ,start_date_local
         ,average_pace_mins_per_mile
         ,distance_miles
@@ -747,29 +757,29 @@ duckdb.sql(f'''
 
 #%%
 # What distance did I run on average?
-duckdb.sql('''
-        SELECT ROUND(AVG(distance_miles),2)
-        FROM runs_in_2025
+duckdb.sql(f'''
+        SELECT {year} as year, ROUND(AVG(distance_miles),2) as avg_distance_miles
+        FROM runs_in_year
         '''
     )
 
 #%%
 # How did average distance change over each quarter?
-duckdb.sql('''
-        SELECT QUARTER(start_date_local), ROUND(AVG(distance_miles),2) AS avg_distance_miles
-        FROM runs_in_2025
-        GROUP BY QUARTER(start_date_local)
+duckdb.sql(f'''
+        SELECT {year} as year, QUARTER(start_date_local), ROUND(AVG(distance_miles),2) AS avg_distance_miles
+        FROM runs_in_year
+        GROUP BY ALL
         ORDER BY QUARTER(start_date_local)
         '''
     )
 
 #%%
 # What months did I run the most and which did I run the least in terms of mileage?
-duckdb.sql('''
+duckdb.sql(f'''
            WITH monthly AS (
-                SELECT start_date_local_yyyy_mm, round(sum(distance_miles),2) as total_miles_running
-                FROM runs_in_2025
-                GROUP BY start_date_local_yyyy_mm
+                SELECT {year} as year, start_date_local_yyyy_mm, round(sum(distance_miles),2) as total_miles_running
+                FROM runs_in_year
+                GROUP BY ALL
                 ORDER BY start_date_local_yyyy_mm
             )
             , maximum AS (
@@ -796,7 +806,8 @@ y = 10
 duckdb.sql(f'''
     WITH ranked_runs AS (
         SELECT
-            name
+            {year} as year
+            ,name
             ,DATE(start_date_local) AS start_date_local
             ,distance_miles
             ,average_pace_mins_per_mile
@@ -804,10 +815,11 @@ duckdb.sql(f'''
             ,RANK() OVER (
                 ORDER BY distance_miles DESC
             ) AS distance_rank
-        FROM runs_in_2025
+        FROM runs_in_year
     )
     SELECT
-        name
+        year
+        ,name
         ,start_date_local
         ,distance_miles
         ,average_pace_mins_per_mile
@@ -821,9 +833,80 @@ duckdb.sql(f'''
 #%%
 # Distance histogram
 duckdb.sql(f'''
-    SELECT DISTINCT(ROUND(distance_miles,0)) AS nearest_whole_mile, COUNT(*) AS frequency
-    FROM runs_in_2025
+    SELECT DISTINCT(ROUND(distance_miles,0)) AS nearest_whole_mile, {year} as year, COUNT(*) AS frequency
+    FROM runs_in_year
     GROUP BY ALL
     ORDER BY COUNT(*) DESC
     '''
+   )
+
+#%%
+##########################################################################################
+# 2026 JUNE CHECK IN
+##########################################################################################
+
+# Activities in 2026 as of mid June
+activities_in_2026 = duckdb.sql('''
+            SELECT *  
+            FROM staging
+            WHERE year(start_date_local) = 2026
+           '''
+   )
+
+#%%
+# Activity distribution
+duckdb.sql('''
+           SELECT distinct type, count(*) AS activity_count
+           FROM activities_in_2026
+           GROUP BY type
+           ORDER BY activity_count DESC
+           '''
+   )
+
+# %%
+# Weight splits distribution
+duckdb.sql('''
+           WITH splits AS (
+            SELECT 
+                split_part(name, ': ', 1) AS lift_name
+                -- If lift_area is empty (I didnt specify the area in my workout name), then take the second word from lift_name (e.g., "Pilates" from "Morning Pilates")
+                , CASE 
+                    WHEN split_part(name, ': ', 2) = '' 
+                    THEN split_part(split_part(name, ': ', 1), ' ', 2)
+                    ELSE split_part(name, ': ', 2)
+                END AS lift_area
+                , moving_time_hrs
+            FROM activities_in_2026
+            WHERE type = 'WeightTraining'
+           )
+           , dist AS (
+                SELECT distinct lift_area, count(*) AS count, round(sum(moving_time_hrs),2) AS moving_time_hrs
+                FROM splits
+                GROUP BY ALL
+                ORDER BY count DESC
+           )
+           , total AS (
+                SELECT 'Total Lifts', count(*), round(sum(moving_time_hrs),2) AS moving_time_hrs
+                FROM activities_in_2026
+                WHERE type = 'WeightTraining'
+           )
+           SELECT * FROM dist
+           UNION ALL
+           SELECT * FROM total
+           '''
+   )
+# %%
+# Weights YoY
+# Didnt label my weight sessions with the same level of detail in 2025 so just looking at total count of weight sessions per year
+duckdb.sql('''
+           WITH all_weights AS (
+            SELECT *
+            FROM staging
+            WHERE type = 'WeightTraining'
+           )
+           SELECT year(start_date_local) AS year, count(*) AS weight_sessions
+           FROM all_weights
+           GROUP BY all
+           ORDER BY year
+           '''
    )
