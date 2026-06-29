@@ -101,7 +101,6 @@ staging = duckdb.sql(f"""
 # Set the year for analysis
 year = 2026
 
-#%%
 # Only runs in the selected year
 runs_in_year = duckdb.sql(f'''
             SELECT *
@@ -864,9 +863,9 @@ duckdb.sql('''
    )
 
 # %%
-# Weight splits distribution
+# Weights distribution
 duckdb.sql('''
-           WITH splits AS (
+           WITH weights AS (
             SELECT 
                 split_part(name, ': ', 1) AS lift_name
                 -- If lift_area is empty (I didnt specify the area in my workout name), then take the second word from lift_name (e.g., "Pilates" from "Morning Pilates")
@@ -881,7 +880,7 @@ duckdb.sql('''
            )
            , dist AS (
                 SELECT distinct lift_area, count(*) AS count, round(sum(moving_time_hrs),2) AS moving_time_hrs
-                FROM splits
+                FROM weights
                 GROUP BY ALL
                 ORDER BY count DESC
            )
@@ -895,6 +894,40 @@ duckdb.sql('''
            SELECT * FROM total
            '''
    )
+
+# %%
+# Upper/lower split distribution
+duckdb.sql('''  
+        WITH splits AS (
+            SELECT 
+                split_part(name, ': ', 1) AS lift_name
+                , CASE
+                    WHEN split_part(name, ': ', 2) = ''
+                    THEN split_part(split_part(name, ': ', 1), ' ', 2)
+                    ELSE split_part(name, ': ', 2)
+                END AS lift_area
+            FROM activities_in_2026
+            WHERE type = 'WeightTraining'
+        )
+        , counts AS (
+            SELECT
+                COUNT(*) FILTER (WHERE lift_area LIKE 'Upper%') AS upper_body
+                , COUNT(*) FILTER (WHERE lift_area LIKE 'Lower%') AS lower_body
+                , COUNT(*) AS total_lifts
+            FROM splits
+        )
+        SELECT
+            upper_body
+            , lower_body
+            , total_lifts
+            , ROUND(upper_body * 1.0 / lower_body, 2) AS upper_to_lower_ratio
+            , ROUND(upper_body * 1.0 / total_lifts, 2) AS upper_ratio
+            , ROUND(lower_body * 1.0 / total_lifts, 2) AS lower_ratio
+
+        FROM counts
+''')
+
+
 # %%
 # Weights YoY
 # Didnt label my weight sessions with the same level of detail in 2025 so just looking at total count of weight sessions per year
@@ -910,3 +943,5 @@ duckdb.sql('''
            ORDER BY year
            '''
    )
+
+# %%
