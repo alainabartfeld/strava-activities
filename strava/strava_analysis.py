@@ -943,3 +943,5 @@ duckdb.sql('''
            ORDER BY year
            '''
    )
+
+# %%
